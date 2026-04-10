@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./vis-network.css" />
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #09090b;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      min-height: 720px;
+      background: #09090b;
+    }
+
+    #network {
+      width: 100%;
+      height: 100%;
+    }
+
+    #dragEdgePreview {
+      position: absolute;
+      inset: 0;
+      z-index: 9;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: none;
+    }
+
+    #dragEdgePreview.active {
+      display: block;
+    }
+
+    #dragEdgePreview line {
+      stroke: #fafafa;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 8 8;
+      filter: drop-shadow(0 0 8px rgba(20, 184, 166, 0.8));
+    }
+
+    .toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      max-width: calc(100% - 32px);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid rgba(244, 244, 245, 0.22);
+      border-radius: 8px;
+      background: rgba(24, 24, 27, 0.9);
+      color: #fafafa;
+      padding: 10px 14px;
+      cursor: pointer;
+      min-height: 40px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(12px);
+    }
+
+    button:hover {
+      background: rgba(39, 39, 42, 0.95);
+      border-color: rgba(244, 244, 245, 0.42);
+    }
+
+    .hint {
+      color: #e4e4e7;
+      background: rgba(24, 24, 27, 0.72);
+      border: 1px solid rgba(244, 244, 245, 0.16);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 40px;
+      display: none;
+      align-items: center;
+      backdrop-filter: blur(12px);
+    }
+
+    .hint.active {
+      display: flex;
+    }
+
+    .legend {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      min-width: 210px;
+      max-width: min(280px, calc(100% - 32px));
+      padding: 12px;
+      border: 1px solid rgba(244, 244, 245, 0.16);
+      border-radius: 8px;
+      background: rgba(24, 24, 27, 0.82);
+      color: #fafafa;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(12px);
+    }
+
+    .legend-title {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fafafa;
+    }
+
+    .legend-items {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #e4e4e7;
+      font-size: 0.84rem;
+      line-height: 1.2;
+    }
+
+    .legend-swatch {
+      width: 22px;
+      height: 3px;
+      border-radius: 3px;
+      flex: 0 0 auto;
+      background: #a1a1aa;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9, 9, 11, 0.7);
+      padding: 20px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      background: #18181b;
+      border: 1px solid rgba(244, 244, 245, 0.16);
+      border-radius: 8px;
+      padding: 18px;
+      color: #fafafa;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.44);
+    }
+
+    .modal h2 {
+      margin: 0 0 14px;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: #d4d4d8;
+      font-size: 0.9rem;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(244, 244, 245, 0.18);
+      border-radius: 8px;
+      background: #09090b;
+      color: #fafafa;
+      padding: 10px;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .profile-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .profile-row.full {
+      grid-column: 1 / -1;
+    }
+
+    .profile-label {
+      color: #a1a1aa;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .profile-value {
+      color: #fafafa;
+      border: 1px solid rgba(244, 244, 245, 0.14);
+      border-radius: 8px;
+      background: #09090b;
+      padding: 10px;
+      line-height: 1.35;
+      min-height: 42px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .secondary {
+      background: transparent;
+    }
+
+    @media (max-width: 640px) {
+      #app {
+        min-height: 680px;
+      }
+
+      .toolbar {
+        top: 10px;
+        left: 10px;
+        max-width: calc(100% - 20px);
+      }
+
+      .legend {
+        top: auto;
+        right: 10px;
+        bottom: 10px;
+        min-width: 180px;
+        max-width: calc(100% - 20px);
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="network"></div>
+    <svg id="dragEdgePreview" aria-hidden="true">
+      <line id="dragEdgePreviewLine" x1="0" y1="0" x2="0" y2="0"></line>
+    </svg>
+    <div class="toolbar">
+      <button id="addPersonButton" type="button">+ Add Person</button>
+      <button id="addConnectionButton" type="button">+ Add Connection</button>
+      <button id="resetViewButton" type="button">Reset View</button>
+      <div id="hint" class="hint">Drag from one person to another to add a connection.</div>
+    </div>
+    <aside class="legend" aria-label="Connection colour legend">
+      <p class="legend-title">Connection Colours</p>
+      <div id="legendItems" class="legend-items"></div>
+    </aside>
+
+    <div id="personModal" class="modal-backdrop">
+      <form id="personForm" class="modal">
+        <h2>Add Person</h2>
+        <div class="grid">
+          <div class="field full">
+            <label for="personName">Full Name *</label>
+            <input id="personName" required />
+          </div>
+          <div class="field full">
+            <label for="personEmail">Email</label>
+            <input id="personEmail" type="email" />
+          </div>
+          <div class="field">
+            <label for="personYear">Year</label>
+            <select id="personYear">
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="personDepartment">Department</label>
+            <select id="personDepartment"></select>
+          </div>
+          <div class="field">
+            <label for="personRole">Role</label>
+            <select id="personRole">
+              <option>student</option>
+              <option>alumni</option>
+              <option>perm_faculty</option>
+              <option>vis_faculty</option>
+              <option>nt_faculty</option>
+              <option>others</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="personHostel">Hostel</label>
+            <input id="personHostel" />
+          </div>
+          <div class="field full">
+            <label for="personBio">Bio</label>
+            <textarea id="personBio"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="cancelPerson" type="button">Cancel</button>
+          <button type="submit">Add Person</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="edgeModal" class="modal-backdrop">
+      <form id="edgeForm" class="modal">
+        <h2>Add Connection</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="edgeType">Relationship Type</label>
+            <select id="edgeType"></select>
+          </div>
+          <div class="field">
+            <label for="edgeStrength">Strength</label>
+            <select id="edgeStrength">
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option selected>5</option>
+              <option>6</option>
+              <option>7</option>
+              <option>8</option>
+              <option>9</option>
+              <option>10</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="edgeNotes">Notes</label>
+            <input id="edgeNotes" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="cancelEdge" type="button">Cancel</button>
+          <button type="submit">Add Connection</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="profileModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Person Profile">
+      <div class="modal">
+        <h2 id="profileName">Person Profile</h2>
+        <div class="profile-grid">
+          <div class="profile-row">
+            <div class="profile-label">ID</div>
+            <div id="profileId" class="profile-value">-</div>
+          </div>
+          <div class="profile-row">
+            <div class="profile-label">Role</div>
+            <div id="profileRole" class="profile-value">-</div>
+          </div>
+          <div class="profile-row full">
+            <div class="profile-label">Email</div>
+            <div id="profileEmail" class="profile-value">-</div>
+          </div>
+          <div class="profile-row">
+            <div class="profile-label">Department</div>
+            <div id="profileDepartment" class="profile-value">-</div>
+          </div>
+          <div class="profile-row">
+            <div class="profile-label">Year</div>
+            <div id="profileYear" class="profile-value">-</div>
+          </div>
+          <div class="profile-row full">
+            <div class="profile-label">Hostel</div>
+            <div id="profileHostel" class="profile-value">-</div>
+          </div>
+          <div class="profile-row full">
+            <div class="profile-label">Bio</div>
+            <div id="profileBio" class="profile-value">-</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="closeProfile" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./vis-network.min.js"></script>
+  <script>
+    let network;
+    let nodes;
+    let edges;
+    let args = {};
+    let pendingEdge = null;
+    let pendingEdgeCallback = null;
+    let originalPositions = {};
+    let isAddingConnection = false;
+    let draggedConnectionNode = null;
+    const graphStateKey = "collegeNetworkGraphEditorState";
+
+    const relColours = {
+      friend: "#4CAF50",
+      classmate: "#2196F3",
+      project_teammate: "#FF9800",
+      mentor: "#9C27B0",
+      hostel_neighbour: "#F44336",
+      acquaintance: "#9E9E9E",
+      foe: "#ef4444",
+      best_friend: "#22c55e",
+      alumni: "#14b8a6",
+      teacher: "#a855f7",
+    };
+
+    function sendMessage(type, data) {
+      window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, "*");
+    }
+
+    function setFrameHeight() {
+      const height = Math.max(720, Math.floor(window.screen.height * 0.82));
+      sendMessage("streamlit:setFrameHeight", { height });
+    }
+
+    function setComponentValue(value) {
+      sendMessage("streamlit:setComponentValue", { value });
+    }
+
+    function readGraphState() {
+      try {
+        return JSON.parse(window.sessionStorage.getItem(graphStateKey) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function writeGraphState() {
+      if (!network) return;
+      try {
+        window.sessionStorage.setItem(graphStateKey, JSON.stringify({
+          view: {
+            position: network.getViewPosition(),
+            scale: network.getScale(),
+          },
+          positions: network.getPositions(),
+        }));
+      } catch {
+        // Keep graph interactions working if browser storage is unavailable.
+      }
+    }
+
+    function withSavedPositions(nodeList, savedPositions) {
+      return nodeList.map((node) => {
+        const saved = savedPositions && savedPositions[node.id];
+        if (!saved) return node;
+        return { ...node, x: saved.x, y: saved.y };
+      });
+    }
+
+    function restoreView(state) {
+      if (!network || !state || !state.view) return false;
+      const { position, scale } = state.view;
+      if (!position || typeof scale !== "number") return false;
+      network.moveTo({ position, scale, animation: false });
+      return true;
+    }
+
+    function optionList(select, values) {
+      select.innerHTML = "";
+      values.forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function titleCase(value) {
+      return value
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    function renderLegend(values) {
+      const legend = document.getElementById("legendItems");
+      legend.innerHTML = "";
+      values.forEach((value) => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.background = relColours[value] || "#9E9E9E";
+
+        const label = document.createElement("span");
+        label.textContent = titleCase(value);
+
+        item.appendChild(swatch);
+        item.appendChild(label);
+        legend.appendChild(item);
+      });
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("active");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function setProfileField(id, value) {
+      const element = document.getElementById(id);
+      const text = value === null || value === undefined || String(value).trim() === "" ? "-" : String(value).trim();
+      element.innerHTML = escapeHtml(text);
+    }
+
+    function openProfileModal(profile) {
+      if (!profile) return;
+      const name = profile.name && String(profile.name).trim() ? String(profile.name).trim() : "Person Profile";
+      document.getElementById("profileName").textContent = name;
+      setProfileField("profileId", profile.id);
+      setProfileField("profileRole", profile.role);
+      setProfileField("profileEmail", profile.email);
+      setProfileField("profileDepartment", profile.department);
+      setProfileField("profileYear", profile.year);
+      setProfileField("profileHostel", profile.hostel);
+      setProfileField("profileBio", profile.bio);
+      openModal("profileModal");
+    }
+
+    function disableAddConnectionMode() {
+      isAddingConnection = false;
+      draggedConnectionNode = null;
+      hideDragPreview();
+      document.getElementById("hint").classList.remove("active");
+      if (!network) return;
+      network.unselectAll();
+      network.setOptions({ interaction: { dragNodes: true, dragView: true } });
+      document.getElementById("network").style.cursor = "";
+    }
+
+    function pointerPosition(event) {
+      const bounds = document.getElementById("network").getBoundingClientRect();
+      return {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      };
+    }
+
+    function nodeAtPointer(event) {
+      if (!network) return null;
+      return network.getNodeAt(pointerPosition(event));
+    }
+
+    function hideDragPreview() {
+      document.getElementById("dragEdgePreview").classList.remove("active");
+    }
+
+    function updateDragPreview(event) {
+      if (!network || !draggedConnectionNode) return;
+      const [nodePosition] = Object.values(network.getPositions([draggedConnectionNode]));
+      if (!nodePosition) return;
+
+      const start = network.canvasToDOM(nodePosition);
+      const end = pointerPosition(event);
+      const line = document.getElementById("dragEdgePreviewLine");
+      line.setAttribute("x1", start.x);
+      line.setAttribute("y1", start.y);
+      line.setAttribute("x2", end.x);
+      line.setAttribute("y2", end.y);
+      document.getElementById("dragEdgePreview").classList.add("active");
+    }
+
+    function enableAddConnectionMode() {
+      isAddingConnection = true;
+      draggedConnectionNode = null;
+      document.getElementById("hint").textContent = "Drag from one person to another to add a connection.";
+      document.getElementById("hint").classList.add("active");
+      document.getElementById("network").style.cursor = "crosshair";
+      if (network) {
+        network.setOptions({ interaction: { dragNodes: false, dragView: false } });
+      }
+    }
+
+    function render(payload) {
+      args = payload || {};
+      optionList(document.getElementById("edgeType"), args.relTypes || ["acquaintance"]);
+      optionList(document.getElementById("personDepartment"), args.departments || []);
+      renderLegend(args.relTypes || ["acquaintance"]);
+
+      const savedState = readGraphState();
+      const activePositions = network ? network.getPositions() : savedState.positions;
+      const activeView = network
+        ? { view: { position: network.getViewPosition(), scale: network.getScale() } }
+        : savedState;
+
+      nodes = new vis.DataSet(withSavedPositions(args.nodes || [], activePositions));
+      edges = new vis.DataSet(args.edges || []);
+
+      const options = {
+        autoResize: true,
+        nodes: {
+          shape: "dot",
+          borderWidth: 2,
+          color: {
+            border: "#fafafa",
+            background: "#14b8a6",
+            highlight: { border: "#fafafa", background: "#22c55e" },
+          },
+          font: { color: "#fafafa", size: 19, face: "Inter", strokeWidth: 4, strokeColor: "#09090b" },
+        },
+        edges: {
+          smooth: { enabled: true, type: "continuous", roundness: 0.18 },
+          color: { color: "#a1a1aa", highlight: "#fafafa" },
+          font: { size: 0 },
+        },
+        interaction: {
+          hover: true,
+          multiselect: false,
+          navigationButtons: true,
+          keyboard: true,
+        },
+        manipulation: {
+          enabled: false,
+        },
+        physics: {
+          enabled: false,
+        },
+      };
+
+      if (!network) {
+        network = new vis.Network(document.getElementById("network"), { nodes, edges }, options);
+        window.setTimeout(() => {
+          if (!restoreView(savedState)) {
+            network.fit({ animation: false });
+          }
+          originalPositions = network.getPositions();
+          writeGraphState();
+        }, 0);
+        network.on("dragEnd", writeGraphState);
+        network.on("zoom", writeGraphState);
+        network.on("click", (params) => {
+          if (isAddingConnection) return;
+          if (!params.nodes || !params.nodes.length) return;
+          const clickedNode = nodes.get(params.nodes[0]);
+          if (!clickedNode) return;
+          openProfileModal(clickedNode.profile || { id: clickedNode.id, name: clickedNode.label });
+        });
+        const networkElement = document.getElementById("network");
+        networkElement.addEventListener("pointerdown", (event) => {
+          if (!isAddingConnection) return;
+          draggedConnectionNode = nodeAtPointer(event);
+          if (!draggedConnectionNode) return;
+          network.selectNodes([draggedConnectionNode]);
+          updateDragPreview(event);
+          networkElement.setPointerCapture(event.pointerId);
+          event.preventDefault();
+        });
+        networkElement.addEventListener("pointermove", (event) => {
+          if (!isAddingConnection || !draggedConnectionNode) return;
+          updateDragPreview(event);
+          event.preventDefault();
+        });
+        networkElement.addEventListener("pointerup", (event) => {
+          if (!isAddingConnection || !draggedConnectionNode) return;
+          const targetNode = nodeAtPointer(event);
+          hideDragPreview();
+          if (targetNode && targetNode !== draggedConnectionNode) {
+            pendingEdge = { from: draggedConnectionNode, to: targetNode };
+            pendingEdgeCallback = null;
+            disableAddConnectionMode();
+            openModal("edgeModal");
+          } else {
+            draggedConnectionNode = null;
+            network.unselectAll();
+          }
+          event.preventDefault();
+        });
+      } else {
+        network.setData({ nodes, edges });
+        network.setOptions(options);
+        window.setTimeout(() => {
+          restoreView(activeView);
+          writeGraphState();
+        }, 0);
+      }
+    }
+
+    document.getElementById("addConnectionButton").addEventListener("click", () => {
+      if (!network) return;
+      if (isAddingConnection) {
+        disableAddConnectionMode();
+        return;
+      }
+      enableAddConnectionMode();
+    });
+
+    document.getElementById("addPersonButton").addEventListener("click", () => {
+      disableAddConnectionMode();
+      openModal("personModal");
+    });
+
+    document.getElementById("resetViewButton").addEventListener("click", () => {
+      disableAddConnectionMode();
+      if (!network || !originalPositions) return;
+      Object.entries(originalPositions).forEach(([nodeId, position]) => {
+        network.moveNode(nodeId, position.x, position.y);
+      });
+      network.fit({ animation: false });
+      writeGraphState();
+    });
+
+    document.getElementById("cancelPerson").addEventListener("click", () => closeModal("personModal"));
+    document.getElementById("closeProfile").addEventListener("click", () => closeModal("profileModal"));
+
+    document.getElementById("personForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = document.getElementById("personName").value.trim();
+      if (!name) return;
+      closeModal("personModal");
+      writeGraphState();
+      setComponentValue({
+        type: "add_person",
+        requestId: `${Date.now()}-${Math.random()}`,
+        name,
+        email: document.getElementById("personEmail").value.trim(),
+        year: Number(document.getElementById("personYear").value),
+        department: document.getElementById("personDepartment").value,
+        role: document.getElementById("personRole").value,
+        hostel: document.getElementById("personHostel").value.trim(),
+        bio: document.getElementById("personBio").value.trim(),
+      });
+    });
+
+    document.getElementById("cancelEdge").addEventListener("click", () => {
+      if (pendingEdgeCallback) pendingEdgeCallback(null);
+      pendingEdge = null;
+      pendingEdgeCallback = null;
+      disableAddConnectionMode();
+      closeModal("edgeModal");
+    });
+
+    document.getElementById("edgeForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!pendingEdge) return;
+
+      const relType = document.getElementById("edgeType").value;
+      const strength = Number(document.getElementById("edgeStrength").value);
+      const notes = document.getElementById("edgeNotes").value.trim();
+      const visualEdge = {
+        ...pendingEdge,
+        title: relType,
+        width: strength / 2,
+        color: relColours[relType] || "#9E9E9E",
+      };
+      if (pendingEdgeCallback) {
+        pendingEdgeCallback(visualEdge);
+      } else {
+        edges.add(visualEdge);
+      }
+
+      writeGraphState();
+      setComponentValue({
+        type: "add_edge",
+        requestId: `${Date.now()}-${Math.random()}`,
+        from: pendingEdge.from,
+        to: pendingEdge.to,
+        relType,
+        strength,
+        notes,
+      });
+
+      pendingEdge = null;
+      pendingEdgeCallback = null;
+      disableAddConnectionMode();
+      closeModal("edgeModal");
+      document.getElementById("edgeNotes").value = "";
+    });
+
+    window.addEventListener("message", (event) => {
+      const data = event.data || {};
+      if (data.type === "streamlit:render") {
+        render(data.args);
+        setFrameHeight();
+      }
+    });
+
+    window.addEventListener("resize", setFrameHeight);
+    sendMessage("streamlit:componentReady", { apiVersion: 1 });
+    setFrameHeight();
+  </script>
+</body>
+</html>
