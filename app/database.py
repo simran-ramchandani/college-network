@@ -39,3 +39,24 @@ def test_connection():
         return True, "Connected successfully"
     except Exception as e:
         return False, str(e)
+
+
+def ensure_schema_updates():
+    """Apply small backward-compatible schema updates for existing databases."""
+    with engine.begin() as conn:
+        member_status_exists = conn.execute(text("""
+            SELECT COUNT(*) AS count
+            FROM information_schema.columns
+            WHERE table_schema = :db_name
+              AND table_name = 'club_memberships'
+              AND column_name = 'member_status'
+        """), {"db_name": DB_NAME}).scalar()
+
+        if not member_status_exists:
+            conn.execute(text("""
+                ALTER TABLE club_memberships
+                ADD COLUMN member_status
+                ENUM('active', 'passed_out')
+                DEFAULT 'active'
+                AFTER role
+            """))

@@ -50,8 +50,8 @@ streamlit run streamlit_app.py
 ### CRUD
 - **Create** — Add people, relationships, clubs, memberships
 - **Read** — Search people, view connections, browse clubs
-- **Update** — Edit person profiles, update relationship type/strength
-- **Delete** — Soft-delete people (mark inactive), hard-delete relationships
+- **Update** — Edit person profiles, update relationship type/strength, manage club membership status/since date
+- **Delete** — Soft-delete people (mark inactive), recover inactive people, permanently delete people with confirmation, hard-delete relationships
 
 ### Graph
 - Interactive Pyvis graph — drag nodes, zoom, hover for details

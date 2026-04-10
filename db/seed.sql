@@ -42,17 +42,17 @@ INSERT INTO course_enrollments (person_id, course_id, semester) VALUES
   (7,5,'2024-odd'),(8,3,'2024-even'),(9,4,'2024-odd');
 
 -- Club memberships
-INSERT INTO club_memberships (person_id, club_id, role, joined_on) VALUES
-  (1,1,'Member',    '2023-08-01'),
-  (2,1,'Lead',      '2022-08-01'),
-  (3,2,'Member',    '2023-08-01'),
-  (9,2,'Co-Lead',   '2022-08-01'),
-  (4,3,'Member',    '2023-01-01'),
-  (6,3,'Director',  '2021-08-01'),
-  (10,4,'Member',   '2024-01-01'),
-  (7,4,'Member',    '2023-08-01'),
-  (9,5,'Guitarist', '2022-01-01'),
-  (8,1,'Member',    '2023-08-01');
+INSERT INTO club_memberships (person_id, club_id, role, member_status, joined_on) VALUES
+  (1,1,'Member',    'active',     '2023-08-01'),
+  (2,1,'Lead',      'active',     '2022-08-01'),
+  (3,2,'Member',    'active',     '2023-08-01'),
+  (9,2,'Co-Lead',   'active',     '2022-08-01'),
+  (4,3,'Member',    'active',     '2023-01-01'),
+  (6,3,'Director',  'passed_out', '2021-08-01'),
+  (10,4,'Member',   'active',     '2024-01-01'),
+  (7,4,'Member',    'active',     '2023-08-01'),
+  (9,5,'Guitarist', 'active',     '2022-01-01'),
+  (8,1,'Member',    'active',     '2023-08-01');
 
 -- Relationships (graph edges)
 INSERT INTO relationships (person_a, person_b, rel_type, strength, since, notes) VALUES

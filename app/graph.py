@@ -10,16 +10,21 @@ import streamlit.components.v1 as components
 
 # Colour per relationship type
 REL_COLOURS = {
-    "friend":            "#4CAF50",
-    "classmate":         "#2196F3",
-    "project_teammate":  "#FF9800",
-    "mentor":            "#9C27B0",
-    "hostel_neighbour":  "#F44336",
-    "acquaintance":      "#9E9E9E",
-    "foe":               "#ef4444",
-    "best_friend":       "#22c55e",
-    "alumni":            "#14b8a6",
-    "teacher":           "#a855f7",
+    # High Energy / Social (Warm & Glowing)
+    "best_friend":      "#00ff88",  # Electric Mint (Bright, fresh, "Active")
+    "friend":           "#a3e635",  # Soft Lime (Friendly, approachable)
+    "hostel_neighbour": "#fb7185",  # Rose Pink (Close proximity, warm)
+    
+    # Professional / Distant (Cool & Deep)
+    "classmate":        "#6e9ef8",  # Sky Blue (Clear, functional)
+    "mentor":           "#81c8f8",  # Soft Indigo (Wisdom, trust)
+    "teacher":          "#a855f7",  # Vivid Purple (Authority, "The Master")
+    "alumni":           "#4345aa",  # Deep Blue (Nostalgic, distant connection)
+    
+    # Utility & Conflict
+    "project_teammate": "#fbbf24",  # Amber/Gold (High priority, "Work" mode)
+    "acquaintance":     "#64748b",  # Muted Slate (Faded, "background" person)
+    "foe":              "#991b1b" ,  # Blood Red (Deep, dark, antagonistic)
 }
 
 _graph_editor = components.declare_component(
