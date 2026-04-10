@@ -10,15 +10,16 @@ from sqlalchemy import text
 #  PERSONS
 # ══════════════════════════════════════════════════════════════
 
-def get_all_persons(db):
+def get_all_persons(db, include_inactive: bool = False):
+    where_clause = "" if include_inactive else "WHERE p.is_active = TRUE"
     rows = db.execute(text("""
      SELECT p.id, p.name, p.email, p.year,
          d.name AS department, p.hostel, p.bio, p.roles AS role, p.is_active
         FROM persons p
         LEFT JOIN departments d ON p.dept_id = d.id
-        WHERE p.is_active = TRUE
+        {where_clause}
         ORDER BY p.name
-    """)).mappings().all()
+    """.format(where_clause=where_clause))).mappings().all()
     return [dict(r) for r in rows]
 
 
@@ -72,6 +73,12 @@ def update_person(db, person_id, name, email, year, dept_id, hostel, bio):
 def delete_person(db, person_id: int):
     """Soft delete — sets is_active = FALSE."""
     db.execute(text("UPDATE persons SET is_active=FALSE WHERE id=:pid"),
+               {"pid": person_id})
+    db.commit()
+
+
+def recover_person(db, person_id: int):
+    db.execute(text("UPDATE persons SET is_active=TRUE WHERE id=:pid"),
                {"pid": person_id})
     db.commit()
 
@@ -147,12 +154,12 @@ def get_all_clubs(db):
 def get_club_members(db, club_id: int):
     rows = db.execute(text("""
         SELECT p.id, p.name, p.year, d.name AS department,
-               cm.role, cm.joined_on
+               cm.role, cm.member_status, cm.joined_on AS since
         FROM club_memberships cm
         JOIN persons p ON cm.person_id = p.id
         LEFT JOIN departments d ON p.dept_id = d.id
         WHERE cm.club_id = :cid AND p.is_active = TRUE
-        ORDER BY cm.role, p.name
+        ORDER BY cm.member_status, cm.role, p.name
     """), {"cid": club_id}).mappings().all()
     return [dict(r) for r in rows]
 
@@ -163,12 +170,21 @@ def create_club(db, name, description):
     db.commit()
 
 
-def add_club_membership(db, person_id, club_id, role, joined_on):
+def add_club_membership(db, person_id, club_id, role, member_status, joined_on):
     db.execute(text("""
-        INSERT INTO club_memberships (person_id, club_id, role, joined_on)
-        VALUES (:pid, :cid, :role, :joined_on)
-        ON DUPLICATE KEY UPDATE role=:role
-    """), {"pid": person_id, "cid": club_id, "role": role, "joined_on": joined_on})
+        INSERT INTO club_memberships (person_id, club_id, role, member_status, joined_on)
+        VALUES (:pid, :cid, :role, :member_status, :joined_on)
+        ON DUPLICATE KEY UPDATE
+            role=:role,
+            member_status=:member_status,
+            joined_on=:joined_on
+    """), {
+        "pid": person_id,
+        "cid": club_id,
+        "role": role,
+        "member_status": member_status,
+        "joined_on": joined_on,
+    })
     db.commit()
 
 

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS club_memberships (
     person_id   INT,
     club_id     INT,
     role        VARCHAR(50) DEFAULT 'Member',
+    member_status ENUM('active', 'passed_out') DEFAULT 'active',
     joined_on   DATE,
     PRIMARY KEY (person_id, club_id),
     FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,

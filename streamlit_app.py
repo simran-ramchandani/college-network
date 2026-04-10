@@ -8,7 +8,7 @@ import streamlit as st
 from sqlalchemy.exc import IntegrityError
 
 from app import crud, graph as gx
-from app.database import SessionLocal, test_connection
+from app.database import SessionLocal, ensure_schema_updates, test_connection
 
 
 st.set_page_config(
@@ -17,6 +17,7 @@ st.set_page_config(
 )
 
 PAGES = ["Graph View", "People", "Relationships", "Clubs", "Analytics", "Settings"]
+MEMBER_STATUS_OPTIONS = ["active", "passed_out"]
 REL_TYPES = [
     "friend",
     "classmate",
@@ -60,6 +61,7 @@ def department_maps(db):
 
 
 db = get_session()
+ensure_schema_updates()
 
 if "page" not in st.session_state:
     st.session_state.page = "Graph View"
@@ -241,12 +243,20 @@ elif page == "People":
 
     with tab3:
         st.subheader("Edit or Delete a Person")
-        all_persons = crud.get_all_persons(db)
+        all_persons = crud.get_all_persons(db, include_inactive=True)
         dept_map, _ = department_maps(db)
 
-        sel_edit = st.selectbox("Select person", [p["name"] for p in all_persons], key="edit_sel")
-        if sel_edit and dept_map:
-            p = next(x for x in all_persons if x["name"] == sel_edit)
+        person_options = {
+            f"{p['name']} [ID {p['id']}] ({'active' if p['is_active'] else 'inactive'})": p
+            for p in all_persons
+        }
+        selected_label = st.selectbox("Select person", list(person_options.keys()), key="edit_sel")
+
+        if selected_label and dept_map:
+            p = person_options[selected_label]
+            sel_edit = p["name"]
+            status_text = "active" if p["is_active"] else "inactive"
+            st.caption(f"Current status: {status_text}")
             with st.form("edit_person"):
                 name = st.text_input("Name", value=p["name"])
                 email = st.text_input("Email", value=p["email"] or "")
@@ -258,16 +268,37 @@ elif page == "People":
                 )
                 hostel = st.text_input("Hostel", value=p["hostel"] or "")
                 bio = st.text_area("Bio", value=p["bio"] or "")
-                c1, c2 = st.columns(2)
+                c1, c2, c3 = st.columns(3)
                 save = c1.form_submit_button("Save Changes")
-                delete = c2.form_submit_button("Delete (soft)", type="secondary")
+                soft_delete = c2.form_submit_button("Delete (soft)", type="secondary")
+                recover = c3.form_submit_button("Recover", type="secondary")
 
             if save:
                 crud.update_person(db, p["id"], name, email, year, dept_map[dept], hostel, bio)
                 st.success("Updated.")
-            if delete:
+            if soft_delete:
                 crud.delete_person(db, p["id"])
                 st.warning(f"{sel_edit} marked as inactive.")
+            if recover:
+                crud.recover_person(db, p["id"])
+                st.success(f"{sel_edit} recovered.")
+
+            st.markdown("---")
+            st.subheader("Permanent Delete")
+            st.warning(
+                "Permanent delete removes this person from the database and cannot be rolled back. "
+                "Related rows may also be removed by foreign-key cascades."
+            )
+            confirm_permanent = st.checkbox(
+                f"I understand that permanently deleting {sel_edit} is final.",
+                key=f"confirm_hard_delete_{p['id']}",
+            )
+            if st.button("Delete Permanently", key=f"hard_delete_{p['id']}", type="primary"):
+                if confirm_permanent:
+                    crud.hard_delete_person(db, p["id"])
+                    refresh_app(f"{sel_edit} permanently deleted.", "warning")
+                else:
+                    st.error("Please confirm the warning before permanently deleting this record.")
         elif not dept_map:
             st.info("Add at least one department before editing a person.")
 
@@ -369,11 +400,19 @@ elif page == "Clubs":
             sel_club = c1.selectbox("Club", list(club_map.keys()))
             sel_person = c2.selectbox("Person", list(person_map.keys()))
             role = st.text_input("Role", value="Member")
-            joined_on = st.date_input("Joined On")
+            member_status = st.selectbox("Member Status", MEMBER_STATUS_OPTIONS)
+            joined_on = st.date_input("Since")
 
             col1, col2 = st.columns(2)
             if col1.button("+ Add Member"):
-                crud.add_club_membership(db, person_map[sel_person], club_map[sel_club], role, joined_on)
+                crud.add_club_membership(
+                    db,
+                    person_map[sel_person],
+                    club_map[sel_club],
+                    role,
+                    member_status,
+                    joined_on,
+                )
                 st.success("Added.")
             if col2.button("Remove Member"):
                 crud.remove_club_membership(db, person_map[sel_person], club_map[sel_club])
