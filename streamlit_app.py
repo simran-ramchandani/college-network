@@ -14,6 +14,7 @@ from app.database import SessionLocal, ensure_schema_updates, test_connection
 st.set_page_config(
     page_title="College Network",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 PAGES = ["Graph View", "People", "Relationships", "Clubs", "Analytics", "Settings"]
@@ -69,6 +70,16 @@ if "page" not in st.session_state:
 st.markdown(
     """
     <style>
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    #MainMenu,
+    footer {
+        display: none !important;
+    }
+    [data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
+    }
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #18181b 0%, #27272a 100%);
     }
@@ -120,8 +131,15 @@ if page == "Graph View":
     st.markdown(
         """
         <style>
+        [data-testid="stAppViewContainer"],
+        [data-testid="stAppViewContainer"] > .main,
+        [data-testid="stAppViewContainer"] .block-container {
+            height: 100vh !important;
+            overflow: hidden !important;
+        }
         .block-container {
-            padding: 2.75rem 0 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
         }
@@ -129,10 +147,13 @@ if page == "Graph View":
         div[data-testid="stElementContainer"],
         div[data-testid="stIFrame"] {
             width: 100% !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
         }
         iframe {
             display: block;
             width: 100% !important;
+            height: 100vh !important;
         }
         </style>
         """,
