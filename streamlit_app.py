@@ -1,8 +1,3 @@
-"""
-streamlit_app.py - College Social Network Knowledge Graph
-Run with: streamlit run streamlit_app.py
-"""
-
 import pandas as pd
 import streamlit as st
 from sqlalchemy.exc import IntegrityError
